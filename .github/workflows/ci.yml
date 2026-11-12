@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Backend-Abhaengigkeiten
+        run: |
+          python -m venv app/.venv
+          app/.venv/bin/pip install -q --upgrade pip
+          app/.venv/bin/pip install -q -r app/requirements.txt -r app/requirements-dev.txt
+
+      - name: Backend-Tests
+        run: PYTHONPATH=app app/.venv/bin/pytest -q app/tests
+
+      - name: Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Frontend bauen
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+
+      - name: Statische Pruefungen
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          bash tests/static-checks.sh
+
+      - name: Smoke-Test
+        run: bash tests/local-smoke.sh

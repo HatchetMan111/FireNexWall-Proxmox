@@ -1,0 +1,55 @@
+[
+  {
+    "version": "1.3.0",
+    "slug": "1.3.0",
+    "title": "Suche, Filter und schnellere Detailseiten",
+    "status": "stable",
+    "release_date": "2026-10-28",
+    "summary": "Release Notes lassen sich jetzt durchsuchen und nach Status filtern. Detailseiten laden spürbar schneller.",
+    "body_md": "## Highlights\n\n- Volltextsuche über Version, Titel und Zusammenfassung\n- Statusfilter für stabile Releases, Release Candidates und Beta-Versionen\n- Detailseiten mit vorgerendertem Markdown\n\n## Verbesserungen\n\nDie Übersicht zeigt das neueste Release prominent und lädt alle weiteren Einträge in einer ruhigen, gut lesbaren Kartenliste.\n\n> Tipp: Der Status eines Releases lässt sich im Admin-Bereich jederzeit ändern.",
+    "known_issues_md": "- Die Suche berücksichtigt noch keine Inhalte aus dem Fließtext.\n- Sehr lange Download-Listen werden auf kleinen Displays scrollbar dargestellt.",
+    "downloads": [
+      {
+        "label": "Release Notes 1.3.0 (PDF)",
+        "url": "https://example.com/downloads/release-notes-1.3.0.pdf",
+        "platform": "PDF"
+      },
+      {
+        "label": "Checksums",
+        "url": "https://example.com/downloads/release-notes-1.3.0.sha256",
+        "platform": "SHA256"
+      }
+    ],
+    "published": true
+  },
+  {
+    "version": "1.2.0",
+    "slug": "1.2.0",
+    "title": "Admin-Bereich und Live-Vorschau",
+    "status": "stable",
+    "release_date": "2026-09-16",
+    "summary": "Releases können jetzt direkt im Browser gepflegt werden, inklusive Markdown-Vorschau und Download-Verwaltung.",
+    "body_md": "## Neu\n\n- Geschützter Admin-Bereich mit Login\n- Anlegen, Bearbeiten und Löschen von Releases\n- Markdown-Editor mit Live-Vorschau\n- Download-Links pro Release\n\n## Sicherheit\n\nSessions laufen nach zwölf Stunden ab. Fehlgeschlagene Login-Versuche werden kurzzeitig begrenzt.",
+    "known_issues_md": "- Entwürfe sind nur im Admin-Bereich sichtbar.\n- Das Zurücksetzen des Admin-Passworts erfolgt über den Installer.",
+    "downloads": [
+      {
+        "label": "Release Notes 1.2.0 (PDF)",
+        "url": "https://example.com/downloads/release-notes-1.2.0.pdf",
+        "platform": "PDF"
+      }
+    ],
+    "published": true
+  },
+  {
+    "version": "1.1.0-rc1",
+    "slug": "1.1.0-rc1",
+    "title": "Erster Release Candidate",
+    "status": "rc",
+    "release_date": "2026-08-30",
+    "summary": "Vorschau auf das neue Portal-Design mit Dark Mode und responsiver Release-Liste.",
+    "body_md": "## Vorschau\n\nDieser Release Candidate enthält das neue Erscheinungsbild und die responsive Kartenliste.\n\n- Dark und Light Theme\n- Optimierte Darstellung auf Smartphone und Desktop\n- Status-Badges für alle Release-Kanäle",
+    "known_issues_md": "- Die Druckansicht ist noch nicht optimiert.\n- Einzelne Markdown-Tabellen brechen auf sehr schmalen Displays um.",
+    "downloads": [],
+    "published": true
+  }
+]
