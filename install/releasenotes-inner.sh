@@ -126,13 +126,20 @@ PACKAGES=(
 
 ensure_dns() {
   getent hosts deb.debian.org >/dev/null 2>&1 && return 0
-  local gateway=""
+  local gateway="" existing="" ns="" ns_list=""
   gateway="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')" || true
+  existing="$(awk '/^nameserver/{print $2}' /etc/resolv.conf 2>/dev/null)" || true
+  # shellcheck disable=SC2086
+  for ns in ${gateway:-} ${existing:-} 1.1.1.1 9.9.9.9; do
+    [[ -n "$ns" ]] || continue
+    case "$ns" in 127.*|::1) continue;; esac
+    case " ${ns_list} " in *" ${ns} "*) continue;; esac
+    ns_list="${ns_list:+${ns_list} }${ns}"
+  done
   {
-    if [[ -n "$gateway" ]]; then
-      printf 'nameserver %s\n' "$gateway"
-    fi
-    printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\n'
+    for ns in $ns_list; do
+      printf 'nameserver %s\n' "$ns"
+    done
     printf 'options timeout:2 attempts:3\n'
   } > /etc/resolv.conf
   for _ in $(seq 1 10); do
