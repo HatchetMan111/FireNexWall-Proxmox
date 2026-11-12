@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { errorMessage, listReleases } from "../lib/api";
-import { formatDate, statusOrder } from "../lib/format";
+import { formatDate, statusLabels, statusOrder } from "../lib/format";
 import type { Release, ReleaseStatus } from "../lib/types";
 
 type Filter = "all" | ReleaseStatus;
@@ -13,15 +13,16 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    document.title = "Release Notes";
+  const load = useCallback(() => {
     let active = true;
+    setLoading(true);
+    setError("");
     listReleases()
       .then((items) => {
         if (active) {
           setReleases(items);
-          setError("");
         }
       })
       .catch((err) => {
@@ -37,6 +38,29 @@ export default function HomePage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    document.title = "Release Notes";
+    return load();
+  }, [load]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (event.key === "/" && !typing) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const latest = releases[0];
@@ -97,7 +121,7 @@ export default function HomePage() {
         <div className="alert error" role="alert">
           <strong>Releases konnten nicht geladen werden.</strong>
           <p>{error}</p>
-          <button className="button" type="button" onClick={() => window.location.reload()}>
+          <button className="button" type="button" onClick={load}>
             Erneut versuchen
           </button>
         </div>
@@ -125,12 +149,16 @@ export default function HomePage() {
             </svg>
             <input
               id="release-search"
+              ref={searchRef}
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Version, Titel oder Stichwort suchen"
               autoComplete="off"
             />
+            <kbd className="search-kbd" aria-hidden="true">
+              /
+            </kbd>
           </div>
           <div className="filter-chips" role="group" aria-label="Nach Status filtern">
             <button
@@ -149,7 +177,7 @@ export default function HomePage() {
                 onClick={() => setFilter(status)}
                 aria-pressed={filter === status}
               >
-                {status}
+                {statusLabels[status]}
               </button>
             ))}
           </div>

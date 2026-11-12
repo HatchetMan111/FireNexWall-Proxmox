@@ -106,9 +106,16 @@ class LoginGuard:
         with self._lock:
             return len(self._active(key)) >= self.limit
 
+    def _prune(self) -> None:
+        cutoff = time.time() - self.window
+        for key in [k for k, hits in self._hits.items() if not hits or hits[-1] < cutoff]:
+            del self._hits[key]
+
     def fail(self, key: str) -> None:
         with self._lock:
             self._active(key)
+            if len(self._hits) >= 1024:
+                self._prune()
             self._hits.setdefault(key, []).append(time.time())
 
     def reset(self, key: str) -> None:

@@ -10,14 +10,25 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     credentials: "include",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     ...init,
     headers: {
       ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },
+  }).catch((err) => {
+    if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      throw new ApiError(
+        "Zeitüberschreitung: Der Server antwortet nicht. Läuft der Dienst?",
+        0
+      );
+    }
+    throw new ApiError("Netzwerkfehler: Server nicht erreichbar", 0);
   });
   if (response.status === 204) {
     return undefined as T;

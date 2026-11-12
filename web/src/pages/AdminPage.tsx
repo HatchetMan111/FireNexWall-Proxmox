@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import LoginForm from "../components/LoginForm";
 import Markdown from "../components/Markdown";
@@ -13,10 +13,8 @@ import {
   logout,
   updateRelease,
 } from "../lib/api";
-import { formatDate, statusLabels, statusOrder } from "../lib/format";
+import { formatDate, slugifyPreview, statusLabels, statusOrder, todayLocal } from "../lib/format";
 import type { DownloadLink, Release, ReleaseInput, ReleaseStatus, Session } from "../lib/types";
-
-const today = () => new Date().toISOString().slice(0, 10);
 
 function emptyForm(): ReleaseInput {
   return {
@@ -24,7 +22,7 @@ function emptyForm(): ReleaseInput {
     slug: "",
     title: "",
     status: "stable",
-    release_date: today(),
+    release_date: todayLocal(),
     summary: "",
     body_md: "",
     known_issues_md: "",
@@ -57,6 +55,12 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const pristineRef = useRef(JSON.stringify(form));
+
+  const dirty = JSON.stringify(form) !== pristineRef.current;
+  const effectiveSlug = form.slug?.trim()
+    ? form.slug.trim().toLowerCase()
+    : slugifyPreview(form.version);
 
   useEffect(() => {
     document.title = "Admin · Release Notes";
@@ -71,6 +75,34 @@ export default function AdminPage() {
     }
   }, [session]);
 
+  useEffect(() => {
+    if (!notice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!dirty) {
+      return;
+    }
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  function confirmDiscard(): boolean {
+    return (
+      !dirty ||
+      window.confirm(
+        "Es gibt ungespeicherte Änderungen. Verwerfen und fortfahren?"
+      )
+    );
+  }
+
   async function load(preferred?: number | "new") {
     setLoading(true);
     setError("");
@@ -80,6 +112,7 @@ export default function AdminPage() {
       if (preferred === "new") {
         setSelected("new");
         setForm(emptyForm());
+        pristineRef.current = JSON.stringify(emptyForm());
         return;
       }
       const target =
@@ -89,9 +122,11 @@ export default function AdminPage() {
       if (target) {
         setSelected(target.id);
         setForm(toInput(target));
+        pristineRef.current = JSON.stringify(toInput(target));
       } else {
         setSelected("new");
         setForm(emptyForm());
+        pristineRef.current = JSON.stringify(emptyForm());
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -108,15 +143,26 @@ export default function AdminPage() {
   }
 
   function startNew() {
+    if (!confirmDiscard()) {
+      return;
+    }
     setSelected("new");
     setForm(emptyForm());
+    pristineRef.current = JSON.stringify(emptyForm());
     setError("");
     setNotice("");
   }
 
   function select(release: Release) {
+    if (selected === release.id) {
+      return;
+    }
+    if (!confirmDiscard()) {
+      return;
+    }
     setSelected(release.id);
     setForm(toInput(release));
+    pristineRef.current = JSON.stringify(toInput(release));
     setError("");
     setNotice("");
   }
@@ -233,6 +279,9 @@ export default function AdminPage() {
           <h1>Releases verwalten</h1>
         </div>
         <div className="admin-actions">
+          <a className="button" href="/api/admin/export" download="releasenotes-export.json">
+            JSON-Export
+          </a>
           <span className="muted">Angemeldet als {session.username}</span>
           <button className="button" type="button" onClick={handleLogout}>
             Abmelden
@@ -287,7 +336,10 @@ export default function AdminPage() {
 
         <form className="admin-editor" onSubmit={handleSave}>
           <div className="editor-heading">
-            <h2>{selected === "new" ? "Neues Release" : "Release bearbeiten"}</h2>
+            <h2>
+              {selected === "new" ? "Neues Release" : "Release bearbeiten"}
+              {dirty ? <span className="dirty-chip">Ungespeichert</span> : null}
+            </h2>
             <div className="editor-actions">
               {typeof selected === "number" ? (
                 <button
@@ -324,6 +376,9 @@ export default function AdminPage() {
                 onChange={(event) => patch({ slug: event.target.value })}
                 placeholder="wird aus der Version erzeugt"
               />
+              <p className="field-hint">
+                URL-Pfad: <code>/release/{effectiveSlug}</code>
+              </p>
             </div>
             <div className="field">
               <label htmlFor="status">Status</label>
@@ -431,6 +486,16 @@ export default function AdminPage() {
                     updateDownload(index, { platform: event.target.value })
                   }
                   placeholder="Plattform"
+                />
+                <input
+                  aria-label={`SHA-256 Prüfsumme ${index + 1}`}
+                  className="mono-input"
+                  value={download.sha256 ?? ""}
+                  onChange={(event) =>
+                    updateDownload(index, { sha256: event.target.value })
+                  }
+                  placeholder="SHA-256 (optional)"
+                  spellCheck={false}
                 />
                 <button
                   className="button small danger"

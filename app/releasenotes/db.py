@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import unicodedata
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 STATUSES = ("stable", "rc", "beta", "alpha", "security")
@@ -57,9 +59,13 @@ def init_db(conn: sqlite3.Connection) -> None:
 
 
 def slugify(value: str) -> str:
-    slug = value.strip().lower()
-    slug = re.sub(r"\s+", "-", slug)
-    slug = "".join(ch for ch in slug if ch.isalnum() or ch in "._-")
+    # NFKD-Fold: "Überarbeitung" -> "uberarbeitung", damit der ASCII-Slug
+    # die SLUG_RE-Pruefung nicht versehentlich scheitern laesst.
+    folded = unicodedata.normalize("NFKD", value.strip().lower())
+    folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    folded = folded.replace("ß", "ss")
+    slug = re.sub(r"\s+", "-", folded)
+    slug = "".join(ch for ch in slug if ch.isascii() and (ch.isalnum() or ch in "._-"))
     slug = slug.strip("-._")
     return slug or "release"
 
@@ -74,6 +80,32 @@ def _iso_date(value: Any) -> str:
     return text
 
 
+def _normalize_downloads(raw: Any) -> list[dict[str, Any]]:
+    # Seeds umgehen Pydantic; daher validieren wir hier direkt.
+    if not isinstance(raw, list):
+        raise ValueError("downloads must be a list")
+    downloads: list[dict[str, Any]] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError("each download must be an object")
+        label = str(entry.get("label") or "").strip()
+        url = str(entry.get("url") or "").strip()
+        if not label:
+            raise ValueError("download label is required")
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("download url must be an absolute http(s) URL")
+        item: dict[str, Any] = {"label": label, "url": url}
+        platform = str(entry.get("platform") or "").strip()
+        if platform:
+            item["platform"] = platform
+        sha256 = str(entry.get("sha256") or "").strip()
+        if sha256:
+            item["sha256"] = sha256
+        downloads.append(item)
+    return downloads
+
+
 def _normalize(data: dict[str, Any]) -> dict[str, Any]:
     version = str(data.get("version", "")).strip()
     if not version:
@@ -86,9 +118,7 @@ def _normalize(data: dict[str, Any]) -> dict[str, Any]:
     status = str(data.get("status") or "stable").strip().lower()
     if status not in STATUSES:
         raise ValueError(f"status must be one of {', '.join(STATUSES)}")
-    downloads = data.get("downloads") or []
-    if not isinstance(downloads, list):
-        raise ValueError("downloads must be a list")
+    downloads = _normalize_downloads(data.get("downloads") or [])
     return {
         "version": version,
         "slug": slug,

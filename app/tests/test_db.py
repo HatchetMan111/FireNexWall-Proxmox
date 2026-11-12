@@ -99,3 +99,66 @@ def test_invalid_date_rejected(conn):
         create_release(
             conn, {"version": "2.0.0", "release_date": "01.11.2026"}
         )
+
+
+def test_slugify_folds_unicode(conn):
+    item = create_release(
+        conn,
+        {"version": "1.4.0-Überarbeitung", "release_date": "2026-11-01"},
+    )
+    assert item["slug"] == "1.4.0-uberarbeitung"
+
+
+def test_slugify_strips_non_ascii(conn):
+    item = create_release(
+        conn,
+        {"version": "Версия 1.0", "release_date": "2026-11-01"},
+    )
+    assert item["slug"] == "1.0"
+
+
+def test_download_entries_validated(conn):
+    with pytest.raises(ValueError):
+        create_release(
+            conn,
+            {
+                "version": "2.0.0",
+                "release_date": "2026-11-01",
+                "downloads": [{"label": "", "url": "https://example.com"}],
+            },
+        )
+    with pytest.raises(ValueError):
+        create_release(
+            conn,
+            {
+                "version": "2.0.0",
+                "release_date": "2026-11-01",
+                "downloads": [{"label": "Paket", "url": "ftp://example.com/x"}],
+            },
+        )
+    with pytest.raises(ValueError):
+        create_release(
+            conn,
+            {
+                "version": "2.0.0",
+                "release_date": "2026-11-01",
+                "downloads": ["kein-objekt"],
+            },
+        )
+    item = create_release(
+        conn,
+        {
+            "version": "2.0.0",
+            "release_date": "2026-11-01",
+            "downloads": [
+                {
+                    "label": "Paket",
+                    "url": "https://example.com/paket.tar.gz",
+                    "sha256": "abc",
+                }
+            ],
+        },
+    )
+    assert item["downloads"] == [
+        {"label": "Paket", "url": "https://example.com/paket.tar.gz", "sha256": "abc"}
+    ]

@@ -505,7 +505,7 @@ textarea {
 
 .search-field input {
   width: 100%;
-  padding: 11px 14px 11px 44px;
+  padding: 11px 40px 11px 44px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--bg-soft);
@@ -1247,9 +1247,66 @@ textarea {
 
 .download-row {
   display: grid;
-  grid-template-columns: 1.1fr 1.6fr 0.8fr auto;
+  grid-template-columns: 1.1fr 1.5fr 0.7fr 1.1fr auto;
   gap: 8px;
   margin-top: 8px;
+}
+
+.mono-input {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.field-hint code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent-2);
+}
+
+.dirty-chip {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.search-kbd {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+.copy-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.copy-btn.copied {
+  border-color: var(--ok);
+  color: var(--ok);
 }
 
 .checkbox {

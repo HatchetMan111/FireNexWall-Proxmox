@@ -6,6 +6,39 @@ import { ApiError, errorMessage, getRelease } from "../lib/api";
 import { formatDate } from "../lib/format";
 import type { Release } from "../lib/types";
 
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Fallback fuer Browser ohne Clipboard-API (z. B. HTTP im LAN):
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      type="button"
+      className={copied ? "button small copy-btn copied" : "button small copy-btn"}
+      onClick={copy}
+      aria-label="Prüfsumme kopieren"
+    >
+      {copied ? "Kopiert ✓" : "Kopieren"}
+    </button>
+  );
+}
+
 export default function ReleasePage() {
   const { slug } = useParams<{ slug: string }>();
   const [release, setRelease] = useState<Release | null>(null);
@@ -33,8 +66,10 @@ export default function ReleasePage() {
         }
         if (err instanceof ApiError && err.status === 404) {
           setNotFound(true);
+          document.title = "Nicht gefunden · Release Notes";
         } else {
           setError(errorMessage(err));
+          document.title = "Fehler · Release Notes";
         }
       })
       .finally(() => {
@@ -124,7 +159,16 @@ export default function ReleasePage() {
                   <span className="download-text">
                     <strong>{download.label}</strong>
                     {download.platform ? <small>{download.platform}</small> : null}
-                    {download.sha256 ? <code>{download.sha256}</code> : null}
+                    {download.sha256 ? (
+                      <>
+                        <code title={download.sha256}>
+                          {download.sha256.length > 24
+                            ? `${download.sha256.slice(0, 24)}…`
+                            : download.sha256}
+                        </code>
+                        <CopyButton value={download.sha256} />
+                      </>
+                    ) : null}
                   </span>
                   <span className="card-arrow" aria-hidden="true">
                     ↗
