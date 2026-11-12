@@ -137,6 +137,30 @@ Beobachtungen:
 - Mobilansicht: Suchfeld nimmt die volle Breite ein, Markenname bleibt einzeilig.
 - SPA-Routen `/release/:slug` und `/admin` laden direkt (Fallback greift).
 
+## Deployment-Verifikation
+
+Das Repository wurde nach
+`https://github.com/HatchetMan111/FireNexWall-Proxmox` gepusht (Branch `main`,
+Commit `c126eb0`).
+
+Geprueft am 2026-11-12:
+
+```text
+raw .../install/releasenotes.sh        -> HTTP 200
+raw .../install/releasenotes-inner.sh  -> HTTP 200
+raw .../README.md                      -> HTTP 200
+Repository-Webseite                    -> HTTP 200
+```
+
+Der veroeffentlichte Einzeiler wurde bis zur Hilfe-Ausgabe ausgefuehrt:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/HatchetMan111/FireNexWall-Proxmox/main/install/releasenotes.sh)" -- --help
+```
+
+Ergebnis: Hilfe wird ausgegeben, Exit-Code 0. Damit sind Download, Bash-Aufruf
+und Argumentweitergabe ueber den Raw-Link verifiziert.
+
 ## Proxmox-Installation und Reboot
 
 Diese Umgebung ist kein Proxmox-VE-Host:
@@ -194,8 +218,9 @@ Erwartetes Ergebnis:
 
 ## Bekannte Einschraenkungen
 
-- Der Installer laedt den Code per `git clone` von GitHub. Ohne Push des
-  Repositories schlaegt die Installation fehl.
+- Der Installer laedt den Code per `git clone` von GitHub. Das Repository muss
+  oeffentlich erreichbar bleiben; bei einem anderen Owner/Namen muessen
+  `REPO_URL` und die Raw-Links angepasst werden.
 - ufw kann in unprivilegierten LXC ohne `CAP_NET_ADMIN` nicht aktiviert werden;
   der Installer warnt dann und faehrt fort. Die LAN-Grenze des Hosts schuetzt.
 - Der Login verwendet ein signiertes Cookie ohne serverseitige
