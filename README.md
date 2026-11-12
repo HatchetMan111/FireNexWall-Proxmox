@@ -36,9 +36,9 @@ Der Installer:
 2. laedt bei Bedarf das Debian-12-Template,
 3. erstellt einen unprivilegierten LXC mit 2 vCPU, 2048 MB RAM, 8 GB Disk,
    `onboot 1` und DHCP,
-4. installiert Node.js, Python, SQLite und die App,
-5. baut das Frontend, initialisiert die Datenbank und startet
-   `releasenotes.service`,
+4. prueft DNS, installiert Python, SQLite und die App und kopiert das
+   mitgelieferte Frontend-Artefakt (`web/dist`),
+5. initialisiert die Datenbank und startet `releasenotes.service`,
 6. beschraenkt Port `8080` und SSH per ufw auf RFC1918-Netze,
 7. prueft `/healthz` und zeigt URL, Zugangsdaten und CT-ID an.
 
@@ -168,7 +168,8 @@ FastAPI (uvicorn, 0.0.0.0:8080)  --->  SQLite /var/lib/releasenotes/releasenotes
 
 ## Entwicklung
 
-Voraussetzungen: Python 3.12, Node.js >= 18, npm.
+Voraussetzungen fuer Entwicklung: Python 3.12, Node.js >= 18, npm. Im
+Container werden weder Node.js noch npm benoetigt.
 
 ```bash
 # Backend
@@ -182,6 +183,9 @@ cd web
 npm ci
 npm run build
 ```
+
+Nach Aenderungen am Frontend `web/dist` neu bauen und mit committen; der
+Container-Installer nutzt dieses Artefakt und baut nichts nach.
 
 Lokal starten (Seed-Daten, temporaere DB):
 
@@ -232,6 +236,8 @@ muss auf einem Host erfolgen.
 | Web-UI nicht erreichbar | `pct exec <CTID> -- systemctl status releasenotes` und Journal pruefen |
 | Admin-Passwort vergessen | Installer mit `--admin-password` erneut ausfuehren |
 | Port belegt | `--port` bei Installation und Update gleich setzen |
+| DNS/`deb.debian.org` nicht aufloesbar | Installer erneut mit `--nameserver "1.1.1.1 9.9.9.9"` starten |
+| `web/dist/index.html` fehlt | Lokal `cd web && npm ci && npm run build`, `dist` committen |
 | Update bricht ab | `--debug` nutzen; vollstaendige Fehlerkette und Logs werden ausgegeben |
 
 Installations- und Fehlerlogs:
@@ -259,7 +265,7 @@ install/releasenotes.sh          Host-Installer (Proxmox)
 install/releasenotes-inner.sh    Container-Installer
 app/releasenotes/                FastAPI-App
 app/tests/                       pytest-Suite
-web/                             React-Frontend
+web/                             React-Frontend (dist/ = Installations-Artefakt)
 data/seed.json                   Beispieldaten
 systemd/releasenotes.service     Unit-Template
 tests/                           Statische Checks, API-, Smoke-, Reboot-Test

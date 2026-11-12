@@ -2,7 +2,6 @@ app/.venv/
 app/**/__pycache__/
 app/.pytest_cache/
 web/node_modules/
-web/dist/
 *.db
 *.db-wal
 *.db-shm

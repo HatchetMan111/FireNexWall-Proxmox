@@ -149,7 +149,7 @@ werden direkt ausgeliefert. `/assets/*` mit langem Cache, `index.html` ohne Cach
    Update-/Log-/Entfern-Kommandos.
 
 Optionen: `--ctid --hostname --cores --ram --disk --storage --template-storage
---bridge --port --admin-password --repo --ref --force --yes --debug -h`.
+--bridge --port --admin-password --repo --ref --nameserver --force --yes --debug -h`.
 
 Fehlerbehandlung: `set -euo pipefail`, ERR-Trap mit Exit-Code, Zeile, Kommando,
 Container-Status, letzte Logzeilen, `journalctl`, offene Ports; vollständiges
@@ -157,18 +157,19 @@ Log unter `/var/log/releasenotes-install.log`; `--debug` aktiviert `bash -x`.
 
 ### Container (`install/releasenotes-inner.sh`)
 
-1. `apt-get update`, Installation von `ca-certificates curl git python3
-   python3-venv python3-pip sqlite3 ufw jq nodejs npm`.
+1. DNS prüfen (Gateway/Host-DNS/Public-Fallback), `apt-get update` mit Retries;
+   Installation von `ca-certificates curl git openssl python3 python3-venv
+   sqlite3 ufw`.
 2. Systembenutzer `releasenotes`, Verzeichnisse `/opt/releasenotes`,
    `/var/lib/releasenotes`, `/etc/releasenotes`.
-3. Repo klonen, App/Web/Unit kopieren (Update überschreibt Code, nicht Daten).
-4. `npm ci && npm run build` im Web-Verzeichnis.
-5. venv anlegen, `pip install -r requirements.txt`.
-6. Konfiguration schreiben; bei Update Secret/Hash erhalten.
-7. DB initialisieren; Seed nur bei leerer Tabelle.
-8. Unit aus Template rendern, `daemon-reload`, `enable`, `restart`.
-9. ufw: Port nur aus RFC1918; bei fehlenden Rechten Warnung statt Abbruch.
-10. Healthcheck mit Retry; bei Fehler vollständige Diagnose.
+3. Repo klonen, App/Web/Unit inklusive mitgeliefertem `web/dist` kopieren
+   (Update überschreibt Code, nicht Daten).
+4. venv anlegen, `pip install -r requirements.txt`.
+5. Konfiguration schreiben; bei Update Secret/Hash erhalten.
+6. DB initialisieren; Seed nur bei leerer Tabelle.
+7. Unit aus Template rendern, `daemon-reload`, `enable`, `restart`.
+8. ufw: Port nur aus RFC1918; bei fehlenden Rechten Warnung statt Abbruch.
+9. Healthcheck mit Retry; bei Fehler vollständige Diagnose.
 
 ## 9. UI
 

@@ -50,10 +50,12 @@ on_error() {
     journalctl -u "$APP_ID" -n 80 --no-pager 2>&1 || true
     echo "--- Offene Ports ---"
     ss -tlnp 2>&1 | head -30 || true
-    echo "--- Python/Node Versionen ---"
+    echo "--- Python-Version ---"
     python3 --version 2>&1 || true
-    node --version 2>&1 || true
-    npm --version 2>&1 || true
+    echo "--- DNS ---"
+    cat /etc/resolv.conf 2>&1 || true
+    ip route 2>&1 || true
+    getent hosts deb.debian.org 2>&1 || true
     echo
     echo "Naechster Schritt:"
     echo "  pct enter <CT-ID>"
@@ -112,18 +114,72 @@ msg_info "ReleaseNotes Installation startet (Port ${PORT})"
 [[ -f /etc/debian_version ]] || die "Debian wird erwartet"
 rm -f /root/.releasenotes-generated-password
 
+APT_OPTS=(
+  -o Acquire::Retries=5
+  -o Acquire::http::Timeout=30
+  -o Acquire::https::Timeout=30
+  -o Acquire::ForceIPv4=true
+)
+PACKAGES=(
+  ca-certificates curl git openssl python3 python3-venv sqlite3 ufw
+)
+
+ensure_dns() {
+  getent hosts deb.debian.org >/dev/null 2>&1 && return 0
+  local gateway=""
+  gateway="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')" || true
+  {
+    if [[ -n "$gateway" ]]; then
+      printf 'nameserver %s\n' "$gateway"
+    fi
+    printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\n'
+    printf 'options timeout:2 attempts:3\n'
+  } > /etc/resolv.conf
+  for _ in $(seq 1 10); do
+    getent hosts deb.debian.org >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  return 1
+}
+
+apt_update() {
+  apt-get update -qq "${APT_OPTS[@]}"
+}
+
+install_packages() {
+  local attempt
+  for attempt in 1 2 3; do
+    if apt-get install -y -qq --no-install-recommends \
+      "${APT_OPTS[@]}" "${PACKAGES[@]}"; then
+      return 0
+    fi
+    msg_warn "apt-Versuch ${attempt}/3 fehlgeschlagen - DNS/Netz pruefen"
+    ensure_dns || true
+    sleep 5
+    apt_update || true
+  done
+  return 1
+}
+
+msg_info "DNS pruefen"
+ensure_dns || die "DNS im Container funktioniert nicht (deb.debian.org nicht aufloesbar)"
+msg_ok "DNS funktioniert"
+
 msg_info "Pakete installieren"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq -o Acquire::Retries=3
-apt-get install -y -qq -o Acquire::Retries=3 \
-  ca-certificates curl git openssl python3 python3-venv python3-pip \
-  sqlite3 ufw jq nodejs npm
+update_ok=0
+for attempt in 1 2 3; do
+  if apt_update; then
+    update_ok=1
+    break
+  fi
+  msg_warn "apt-get update Versuch ${attempt}/3 fehlgeschlagen"
+  ensure_dns || true
+  sleep 3
+done
+[[ "$update_ok" == "1" ]] || die "apt-get update fehlgeschlagen - DNS/Netz im Container pruefen"
+install_packages || die "Pakete konnten nicht installiert werden - DNS/Netz im Container pruefen"
 msg_ok "Pakete installiert"
-
-NODE_MAJOR="$(node --version | sed 's/^v//' | cut -d. -f1)"
-[[ "$NODE_MAJOR" =~ ^[0-9]+$ ]] || die "Node.js-Version nicht ermittelbar"
-(( NODE_MAJOR >= 18 )) || die "Node.js >= 18 erforderlich (gefunden: $(node --version))"
-msg_ok "Node.js $(node --version), npm $(npm --version)"
 
 if ! id "$APP_ID" >/dev/null 2>&1; then
   useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin "$APP_ID"
@@ -148,23 +204,14 @@ msg_info "Dateien nach ${APP_DIR} kopieren"
 rm -rf "$APP_DIR/app" "$APP_DIR/web" "$APP_DIR/systemd" "$APP_DIR/data"
 tar -C "$SRC" \
   --exclude='web/node_modules' \
-  --exclude='web/dist' \
   --exclude='app/.venv' \
   --exclude='app/__pycache__' \
   --exclude='app/.pytest_cache' \
   -cf - app web systemd data | tar -C "$APP_DIR" -xf -
 [[ -f "$APP_DIR/app/releasenotes/main.py" ]] || die "App-Code fehlt nach dem Kopieren"
-[[ -f "$APP_DIR/web/package-lock.json" ]] || die "web/package-lock.json fehlt"
-msg_ok "Code kopiert"
-
-msg_info "Frontend bauen"
-(
-  cd "$APP_DIR/web"
-  npm ci --no-audit --no-fund --loglevel=error
-  npm run build
-)
-[[ -f "$APP_DIR/web/dist/index.html" ]] || die "Frontend-Build fehlt (dist/index.html)"
-msg_ok "Frontend gebaut"
+[[ -f "$APP_DIR/web/dist/index.html" ]] \
+  || die "Frontend-Artefakt fehlt (web/dist/index.html) - lokal 'npm run build' ausfuehren und dist committen"
+msg_ok "Code und Frontend-Artefakt kopiert"
 
 msg_info "Python-Umgebung"
 if [[ ! -x "${VENV}/bin/python" ]]; then

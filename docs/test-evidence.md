@@ -13,6 +13,7 @@ Umgebung: Linux (Ubuntu-Kernel 6.8), Python 3.12.3, Node.js 22.23.2, npm 10.9.8
 | Backend-Tests (pytest) | 21 bestanden | `tests/api.sh` |
 | Frontend-Tests (vitest) | 3 bestanden | `cd web && npm test` |
 | Frontend-Build (tsc + vite) | bestanden | `cd web && npm run build` |
+| Container-Pakete (Debian 12) | bestanden | `docker run --rm debian:12 ...`; venv-pip ohne `python3-pip`, kein Node |
 | Lokaler End-to-End-Smoke-Test | bestanden | `tests/local-smoke.sh` |
 | Browser-/Visual-Pruefung | bestanden, keine Konsolenfehler | Playwright-Screenshots |
 | Proxmox-Installation | **nicht ausgefuehrt** | kein `pct`/`pvesh` in dieser Umgebung |
@@ -36,8 +37,8 @@ Geprueft wurden unter anderem:
   Bindung an `0.0.0.0`, `ReadWritePaths`, `NoNewPrivileges`
 - Host-Installer: `pvesh get /cluster/nextid`, `--onboot 1`,
   `--unprivileged 1`, `set -euo pipefail`
-- Container-Installer: `systemctl enable`, `npm run build`,
-  `python3 -m venv`, `/healthz`
+- Container-Installer: `systemctl enable`, `web/dist/index.html`,
+  `ensure_dns`, `Acquire::Retries=5`, `python3 -m venv`, `/healthz`
 - README enthaelt den Installations-Einzeiler
 
 ## Backend-Tests
@@ -86,6 +87,24 @@ dist/assets/index-D2h6T5Ea.css   18.97 kB │ gzip:   4.65 kB
 dist/assets/index-DHL-dU1H.js    355.87 kB │ gzip: 111.74 kB
 ✓ built in 5.35s
 ```
+
+## Container-Paketprobe (Debian 12)
+
+Befehl:
+
+```bash
+docker run --rm debian:12 bash -lc '
+  apt-get update -qq -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true
+  apt-get install -y -qq --no-install-recommends -o Acquire::Retries=5 \
+    ca-certificates curl git openssl python3 python3-venv sqlite3 ufw
+  python3 -m venv /tmp/v
+  /tmp/v/bin/pip --version
+  test ! -e /usr/bin/node'
+```
+
+Ergebnis: `pip 23.0.1 ...` und `PACKAGES-OK`. Damit ist bestaetigt, dass
+`python3-venv` pip mitbringt und weder `python3-pip` noch Node.js im Container
+noetig sind.
 
 ## Lokaler End-to-End-Smoke-Test
 

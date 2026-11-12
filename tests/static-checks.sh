@@ -57,6 +57,8 @@ for pattern in \
   'pvesh get /cluster/nextid' \
   '--onboot 1' \
   '--unprivileged 1' \
+  '--nameserver' \
+  'configure_ct_dns' \
   'set -euo pipefail' \
   'onboot: 1'; do
   if grep -q -- "$pattern" install/releasenotes.sh; then
@@ -70,7 +72,9 @@ echo
 echo "== Container-Installer =="
 for pattern in \
   'systemctl enable' \
-  'npm run build' \
+  'web/dist/index.html' \
+  'ensure_dns' \
+  'Acquire::Retries=5' \
   'python3 -m venv' \
   '/healthz' \
   'releasenotes.service'; do

@@ -21,6 +21,7 @@ TEMPLATE_STORAGE="local"
 BRIDGE="vmbr0"
 REPO_URL="https://github.com/HatchetMan111/FireNexWall-Proxmox"
 REPO_REF="main"
+DNS_SERVERS=""
 FORCE=0
 ASSUME_YES=0
 DEBUG=0
@@ -63,6 +64,33 @@ print_admin_password() {
   return 0
 }
 
+configure_ct_dns() {
+  local gateway="" host_ns="" ns="" ns_list=""
+  for _ in $(seq 1 30); do
+    pct exec "$CTID" -- true >/dev/null 2>&1 && break
+    sleep 1
+  done
+  gateway="$(pct exec "$CTID" -- ip route 2>/dev/null | awk '/^default/{print $3; exit}')" || true
+  host_ns="$(awk '/^nameserver/ && $2 !~ /^(127\.|::1)$/ && !seen[$2]++ { print $2; n++; if (n==3) exit }' /etc/resolv.conf 2>/dev/null)" || true
+  # shellcheck disable=SC2086
+  for ns in ${DNS_SERVERS:-} ${gateway:-} ${host_ns:-} 1.1.1.1 9.9.9.9; do
+    [[ -n "$ns" ]] || continue
+    case " ${ns_list} " in *" ${ns} "*) continue;; esac
+    ns_list="${ns_list:+${ns_list} }${ns}"
+  done
+  [[ -n "$ns_list" ]] || return 0
+  if ! pct set "$CTID" --nameserver "$ns_list" >/dev/null 2>&1; then
+    msg_warn "DNS konnte nicht in der CT-Konfiguration gespeichert werden"
+  fi
+  {
+    for ns in $ns_list; do
+      printf 'nameserver %s\n' "$ns"
+    done
+    printf 'options timeout:2 attempts:3\n'
+  } | pct exec "$CTID" -- tee /etc/resolv.conf >/dev/null 2>&1 \
+    || msg_warn "Konnte /etc/resolv.conf im Container nicht schreiben"
+}
+
 on_error() {
   local code=$1 line=$2 cmd=$3
   trap - ERR
@@ -80,6 +108,10 @@ on_error() {
       pct exec "$CTID" -- journalctl -u "$APP_ID" -n 80 --no-pager 2>&1 || true
       echo "--- Ports im Container ---"
       pct exec "$CTID" -- ss -tlnp 2>&1 | head -30 || true
+      echo "--- DNS im Container ---"
+      pct exec "$CTID" -- cat /etc/resolv.conf 2>&1 || true
+      pct exec "$CTID" -- ip route 2>&1 || true
+      pct exec "$CTID" -- getent hosts deb.debian.org 2>&1 || true
     fi
     echo "--- Host-Log: ${LOG_FILE} ---"
     tail -n 80 "$LOG_FILE" 2>/dev/null || true
@@ -111,6 +143,7 @@ Usage: bash releasenotes.sh [OPTIONEN]
   --admin-password PW      Admin-Passwort setzen (Default: zufaellig bei Erstinstallation)
   --repo URL               Git-Repo (Default: ${REPO_URL})
   --ref REF                Branch/Tag (Default: ${REPO_REF})
+  --nameserver "NS ..."    DNS-Server im Container (Default: Gateway + Host-DNS + 1.1.1.1/9.9.9.9)
   --force                  Fremden Container mit dieser ID entfernen
   --yes                    nicht-interaktiv, Defaults verwenden
   --debug                  bash -x + erweiterte Diagnose
@@ -132,6 +165,7 @@ while [[ $# -gt 0 ]]; do
     --admin-password) ADMIN_PASSWORD="$2"; shift 2;;
     --repo) REPO_URL="$2"; shift 2;;
     --ref) REPO_REF="$2"; shift 2;;
+    --nameserver) DNS_SERVERS="$2"; shift 2;;
     --force) FORCE=1; shift;;
     --yes) ASSUME_YES=1; shift;;
     --debug) DEBUG=1; shift;;
@@ -296,7 +330,10 @@ if ! grep -q '^onboot: 1' <<<"$CT_CONFIG"; then
   pct set "$CTID" --onboot 1 >/dev/null
 fi
 
-msg_info "Auf Netzwerk im Container warten"
+msg_info "DNS im Container konfigurieren"
+configure_ct_dns
+
+msg_info "Auf Netzwerk und DNS im Container warten"
 ready=0
 for _ in $(seq 1 120); do
   if pct exec "$CTID" -- getent hosts deb.debian.org >/dev/null 2>&1; then
@@ -305,7 +342,12 @@ for _ in $(seq 1 120); do
   fi
   sleep 1
 done
-[[ "$ready" == "1" ]] || die "Container hat nach 120s kein DNS/Netz"
+if [[ "$ready" != "1" ]]; then
+  msg_error "DNS-Diagnose:"
+  pct exec "$CTID" -- cat /etc/resolv.conf 2>&1 || true
+  pct exec "$CTID" -- ip route 2>&1 || true
+  die "Container hat nach 120s kein DNS/Netz. Ggf. --nameserver '1.1.1.1 9.9.9.9' setzen."
+fi
 
 msg_info "Inner-Installer uebertragen"
 LOCAL_INNER="$(dirname -- "${BASH_SOURCE[0]:-}")/releasenotes-inner.sh"
