@@ -10,8 +10,8 @@ Umgebung: Linux (Ubuntu-Kernel 6.8), Python 3.12.3, Node.js 22.23.2, npm 10.9.8
 | Bash-Syntax (`bash -n`) | bestanden | `tests/static-checks.sh` |
 | Shellcheck (Installer + Tests) | bestanden | `tests/static-checks.sh` |
 | Struct-Audit (systemd, Installer, README) | bestanden | `tests/static-checks.sh` |
-| Backend-Tests (pytest) | 21 bestanden | `tests/api.sh` |
-| Frontend-Tests (vitest) | 3 bestanden | `cd web && npm test` |
+| Backend-Tests (pytest) | 24 bestanden | `tests/api.sh` |
+| Frontend-Tests (vitest) | 6 bestanden | `cd web && npm test` |
 | Frontend-Build (tsc + vite) | bestanden | `cd web && npm run build` |
 | Container-Pakete (Debian 12) | bestanden | `docker run --rm debian:12 ...`; venv-pip ohne `python3-pip`, kein Node |
 | Lokaler End-to-End-Smoke-Test | bestanden | `tests/local-smoke.sh` |
@@ -53,18 +53,19 @@ Ergebnis:
 
 ```text
 platform linux -- Python 3.12.3, pytest-8.3.4
-collected 21 items
+collected 24 items
 
-tests/test_api.py ..............                                         [ 66%]
-tests/test_db.py .......                                                 [100%]
+tests/test_api.py ..............                                         [ 58%]
+tests/test_db.py ..........                                              [100%]
 
-21 passed, 1 warning in 4.65s
+24 passed, 1 warning in 5.18s
 ```
 
 Abgedeckt: Healthcheck, oeffentliche Liste/Detail, Login-Erfolg und -Fehler,
 Login-Rate-Limit, Origin-Pruefung, Session/Logout, CRUD, doppelte Slugs,
 Entwuerfe, ungueltige Download-URLs, JSON-Export, SPA-Fallback, Asset-Caching,
-Path-Traversal-Schutz, `b64:`-Konfigurationshash.
+Path-Traversal-Schutz, Datumsformatierung, Slug-Normalisierung,
+Download-Zaehler, `b64:`-Konfigurationshash.
 
 ## Frontend
 
@@ -80,12 +81,12 @@ Ergebnis:
 
 ```text
 Test Files  1 passed (1)
-     Tests  3 passed (3)
+     Tests  6 passed (6)
 
 dist/index.html                   0.65 kB │ gzip:   0.38 kB
-dist/assets/index-D2h6T5Ea.css   18.97 kB │ gzip:   4.65 kB
-dist/assets/index-DHL-dU1H.js    355.87 kB │ gzip: 111.74 kB
-✓ built in 5.35s
+dist/assets/index-CKZ3gfjQ.css   19.81 kB │ gzip:   4.81 kB
+dist/assets/index-QLIOmpjD.js   358.85 kB │ gzip: 112.85 kB
+✓ built in 6.42s
 ```
 
 ## Container-Paketprobe (Debian 12)
