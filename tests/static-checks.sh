@@ -60,6 +60,7 @@ for pattern in \
   '--nameserver' \
   'configure_ct_dns' \
   'pin_install_hosts' \
+  'Bestehender CT' \
   'set -euo pipefail' \
   'onboot: 1'; do
   if grep -q -- "$pattern" install/releasenotes.sh; then
@@ -76,6 +77,7 @@ for pattern in \
   'web/dist/index.html' \
   'ensure_dns' \
   'Acquire::Retries=10' \
+  'APT::Sandbox::User=root' \
   'python3 -m venv' \
   '/healthz' \
   'releasenotes.service'; do

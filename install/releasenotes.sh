@@ -250,7 +250,7 @@ fi
 touch "$LOG_FILE" 2>/dev/null || true
 chmod 600 "$LOG_FILE" 2>/dev/null || true
 if [[ "$DEBUG" == "1" ]]; then
-  export PS4='+ $(date +%H:%M:%S) ${BASH_SOURCE##*/}:${LINENO}: '
+  export PS4='+ $(date +%H:%M:%S) ${0##*/}:${LINENO}: '
   exec > >(tee -a "$LOG_FILE") 2>&1
   set -x
 else
@@ -272,8 +272,19 @@ curl -fsS --max-time 10 -o /dev/null https://raw.githubusercontent.com \
   || msg_warn "raw.githubusercontent.com nicht erreichbar - Repo-Download koennte scheitern"
 
 if [[ -z "$CTID" ]]; then
-  CTID="$(pvesh get /cluster/nextid 2>/dev/null | tr -d '"' | tr -d '[:space:]')"
-  [[ "$CTID" =~ ^[0-9]+$ ]] || die "Konnte keine freie CT-ID ermitteln"
+  CTID="$(pct list 2>/dev/null | awk 'NR>1 {print $1}' | while read -r id; do
+    existing="$(pct config "$id" 2>/dev/null | awk -F': ' '/^hostname:/{print $2}')"
+    if [[ "$existing" == "$CT_HOSTNAME" ]]; then
+      printf '%s\n' "$id"
+      break
+    fi
+  done)"
+  if [[ -n "$CTID" ]]; then
+    msg_info "Bestehender CT ${CTID} (${CT_HOSTNAME}) wird aktualisiert"
+  else
+    CTID="$(pvesh get /cluster/nextid 2>/dev/null | tr -d '"' | tr -d '[:space:]')"
+    [[ "$CTID" =~ ^[0-9]+$ ]] || die "Konnte keine freie CT-ID ermitteln"
+  fi
 fi
 msg_ok "CT-ID: ${CTID}"
 

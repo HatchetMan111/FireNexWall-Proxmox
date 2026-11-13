@@ -38,7 +38,8 @@ Geprueft wurden unter anderem:
 - Host-Installer: `pvesh get /cluster/nextid`, `--onboot 1`,
   `--unprivileged 1`, `set -euo pipefail`
 - Container-Installer: `systemctl enable`, `web/dist/index.html`,
-  `ensure_dns`, `Acquire::Retries=10`, `python3 -m venv`, `/healthz`
+  `ensure_dns`, `Acquire::Retries=10`, `APT::Sandbox::User=root`,
+  `python3 -m venv`, `/healthz`
 - README enthaelt den Installations-Einzeiler
 
 ## Backend-Tests

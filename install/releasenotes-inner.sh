@@ -101,7 +101,7 @@ fi
 touch "$LOG_FILE" 2>/dev/null || true
 chmod 600 "$LOG_FILE" 2>/dev/null || true
 if [[ "$DEBUG" == "1" ]]; then
-  export PS4='+ $(date +%H:%M:%S) ${BASH_SOURCE##*/}:${LINENO}: '
+  export PS4='+ $(date +%H:%M:%S) ${0##*/}:${LINENO}: '
   exec > >(tee -a "$LOG_FILE") 2>&1
   set -x
 else
@@ -119,6 +119,7 @@ APT_OPTS=(
   -o Acquire::http::Timeout=30
   -o Acquire::https::Timeout=30
   -o Acquire::ForceIPv4=true
+  -o APT::Sandbox::User=root
   -o Acquire::http::Pipeline-Depth=0
   -o Acquire::Queue-Mode=host
 )

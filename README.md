@@ -32,7 +32,8 @@ bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/FireNexWa
 
 Der Installer:
 
-1. ermittelt die naechste freie CT-ID,
+1. aktualisiert einen vorhandenen `releasenotes`-CT oder ermittelt die
+   naechste freie CT-ID,
 2. laedt bei Bedarf das Debian-12-Template,
 3. erstellt einen unprivilegierten LXC mit 2 vCPU, 2048 MB RAM, 8 GB Disk,
    `onboot 1` und DHCP,
@@ -68,7 +69,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/HatchetMan111/FireNexWal
 
 | Option | Bedeutung | Default |
 | --- | --- | --- |
-| `--ctid ID` | Container-ID | naechste freie ID |
+| `--ctid ID` | Container-ID | vorhandener `releasenotes`-CT oder naechste freie ID |
 | `--hostname NAME` | CT-Hostname | `releasenotes` |
 | `--cores N` | vCPUs | `2` |
 | `--ram MB` | RAM in MiB | `2048` |
@@ -236,7 +237,8 @@ muss auf einem Host erfolgen.
 | Web-UI nicht erreichbar | `pct exec <CTID> -- systemctl status releasenotes` und Journal pruefen |
 | Admin-Passwort vergessen | Installer mit `--admin-password` erneut ausfuehren |
 | Port belegt | `--port` bei Installation und Update gleich setzen |
-| DNS/`deb.debian.org` nicht aufloesbar | Installer erneut mit `--nameserver "1.1.1.1 9.9.9.9"` starten |
+| DNS/`deb.debian.org` nicht aufloesbar | Installer nutzt `APT::Sandbox::User=root`; falls weiterhin Fehler, mit `--nameserver "1.1.1.1 9.9.9.9"` starten |
+| `pct create` scheitert an `/var/lib/lxc/<ID>/rootfs` | Stale Reste der ID pruefen (`pct status`, `ls -ld`), entfernen oder andere `--ctid` waehlen |
 | `web/dist/index.html` fehlt | Lokal `cd web && npm ci && npm run build`, `dist` committen |
 | Update bricht ab | `--debug` nutzen; vollstaendige Fehlerkette und Logs werden ausgegeben |
 
