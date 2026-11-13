@@ -11,7 +11,8 @@ APP="ReleaseNotes"
 APP_ID="releasenotes"
 APP_PORT=8080
 CTID=""
-CT_HOSTNAME="releasenotes"
+CT_HOSTNAME="NexFireWall"
+LEGACY_CT_HOSTNAME="releasenotes"
 CORES=2
 RAM_MB=2048
 SWAP_MB=512
@@ -32,6 +33,7 @@ LOG_FILE="/var/log/releasenotes-install.log"
 INNER_TMP=""
 HOSTS_TMP=""
 UPDATE_ONLY=0
+RENAME_CT=0
 
 msg_info()  { echo -e "\e[34m[INFO]\e[0m  $*"; }
 msg_ok()    { echo -e "\e[32m[OK]\e[0m    $*"; }
@@ -63,6 +65,32 @@ print_admin_password() {
     )
     printf '  Admin-Passwort: siehe /root/releasenotes-admin-password\n'
   fi
+  rm -f "$ADMIN_TMP" 2>/dev/null || true
+  pct exec "$CTID" -- rm -f /root/.releasenotes-generated-password >/dev/null 2>&1 || true
+  unset pw
+  [[ "$tracing" == "1" ]] && set -x
+  return 0
+}
+
+print_generated_admin_password() {
+  local tracing=0 pw=""
+  [[ "$-" == *x* ]] && tracing=1
+  set +x
+  pw="$(pct exec "$CTID" -- cat /root/.releasenotes-generated-password 2>/dev/null)" || true
+  if [[ -z "$pw" ]]; then
+    [[ "$tracing" == "1" ]] && set -x
+    return 1
+  fi
+  if { : > /dev/tty; } 2>/dev/null; then
+    printf '  Admin-Passwort: %s\n' "$pw" > /dev/tty
+  else
+    (
+      umask 077
+      printf '%s\n' "$pw" > /root/releasenotes-admin-password
+    )
+    printf '  Admin-Passwort: siehe /root/releasenotes-admin-password\n'
+  fi
+  pct exec "$CTID" -- rm -f /root/.releasenotes-generated-password >/dev/null 2>&1 || true
   unset pw
   [[ "$tracing" == "1" ]] && set -x
   return 0
@@ -182,7 +210,7 @@ ${APP} - Proxmox VE Installer
 
 Usage: bash releasenotes.sh [OPTIONEN]
 
-  --ctid ID                CT-ID (Default: naechste freie)
+  --ctid ID                CT-ID (Default: vorhandener CT oder naechste freie)
   --hostname NAME          Container-Hostname (Default: ${CT_HOSTNAME})
   --cores N                vCPUs (Default: ${CORES})
   --ram MB                 RAM in MiB (Default: ${RAM_MB})
@@ -240,7 +268,7 @@ fi
 if ! [[ "$DISK_GB" =~ ^[0-9]+$ ]] || ! (( DISK_GB >= 4 )); then
   die "Ungueltige Disk: ${DISK_GB}"
 fi
-if ! [[ "$CT_HOSTNAME" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]]; then
+if ! [[ "$CT_HOSTNAME" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ ]]; then
   die "Ungueltiger Hostname: ${CT_HOSTNAME}"
 fi
 if [[ -n "$ADMIN_PASSWORD" && "$ADMIN_PASSWORD" == *$'\n'* ]]; then
@@ -274,7 +302,7 @@ curl -fsS --max-time 10 -o /dev/null https://raw.githubusercontent.com \
 if [[ -z "$CTID" ]]; then
   CTID="$(pct list 2>/dev/null | awk 'NR>1 {print $1}' | while read -r id; do
     existing="$(pct config "$id" 2>/dev/null | awk -F': ' '/^hostname:/{print $2}')"
-    if [[ "$existing" == "$CT_HOSTNAME" ]]; then
+    if [[ "${existing,,}" == "${CT_HOSTNAME,,}" || "${existing,,}" == "${LEGACY_CT_HOSTNAME,,}" ]]; then
       printf '%s\n' "$id"
       break
     fi
@@ -291,9 +319,14 @@ msg_ok "CT-ID: ${CTID}"
 EXISTING_HOST=""
 if pct config "$CTID" >/dev/null 2>&1; then
   EXISTING_HOST="$(pct config "$CTID" | awk -F': ' '/^hostname:/{print $2}')"
-  if [[ "$EXISTING_HOST" == "$CT_HOSTNAME" ]]; then
-    msg_warn "CT ${CTID} (${CT_HOSTNAME}) existiert - Update-Modus"
+  if [[ "${EXISTING_HOST,,}" == "${CT_HOSTNAME,,}" || "${EXISTING_HOST,,}" == "${LEGACY_CT_HOSTNAME,,}" ]]; then
     UPDATE_ONLY=1
+    if [[ "$EXISTING_HOST" != "$CT_HOSTNAME" ]]; then
+      msg_warn "CT ${CTID} (${EXISTING_HOST}) wird in ${CT_HOSTNAME} umbenannt"
+      RENAME_CT=1
+    else
+      msg_warn "CT ${CTID} (${CT_HOSTNAME}) existiert - Update-Modus"
+    fi
     if [[ "$(pct status "$CTID" | awk '{print $2}')" != "running" ]]; then
       msg_info "Container starten"
       pct start "$CTID"
@@ -308,6 +341,7 @@ if pct config "$CTID" >/dev/null 2>&1; then
       pct stop "$CTID" 2>/dev/null || true
       pct destroy "$CTID" --purge
       UPDATE_ONLY=0
+      RENAME_CT=0
     else
       die "CT ${CTID} existiert bereits mit Hostname '${EXISTING_HOST}'. Andere ID waehlen oder --force."
     fi
@@ -385,6 +419,18 @@ else
   CT_STATUS="$(pct status "$CTID" | awk '{print $2}')"
   [[ "$CT_STATUS" == "running" ]] || pct start "$CTID"
   pct set "$CTID" --onboot 1 >/dev/null 2>&1 || true
+fi
+
+if [[ "$RENAME_CT" == "1" ]]; then
+  msg_info "Container in ${CT_HOSTNAME} umbenennen"
+  pct set "$CTID" --hostname "$CT_HOSTNAME" >/dev/null 2>&1 \
+    || die "Hostname '${CT_HOSTNAME}' wurde von Proxmox abgelehnt"
+  pct exec "$CTID" -- sh -c "
+    hostname '${CT_HOSTNAME}' 2>/dev/null || true
+    printf '%s\n' '${CT_HOSTNAME}' > /etc/hostname
+    sed -i 's/^127\\.0\\.1\\.1 .*/127.0.1.1 ${CT_HOSTNAME}.local ${CT_HOSTNAME}/' /etc/hosts
+  " || msg_warn "Hostname im Container konnte nicht vollstaendig gesetzt werden"
+  msg_ok "Hostname: ${CT_HOSTNAME}"
 fi
 
 CT_CONFIG="$(pct config "$CTID")"
@@ -470,9 +516,7 @@ EOF
 
 if [[ -n "$ADMIN_TMP" && -f "$ADMIN_TMP" ]]; then
   print_admin_password
-elif pct exec "$CTID" -- test -f /root/.releasenotes-generated-password; then
-  printf '  Admin-Passwort: neu erzeugt, siehe /root/.releasenotes-generated-password im CT\n'
-else
+elif ! print_generated_admin_password; then
   printf '  Admin-Passwort: unveraendert\n'
 fi
 

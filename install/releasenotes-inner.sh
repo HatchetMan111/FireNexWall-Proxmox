@@ -112,7 +112,6 @@ msg_info "ReleaseNotes Installation startet (Port ${PORT})"
 
 [[ "$(id -u)" == "0" ]] || die "Bitte als root im Container ausfuehren"
 [[ -f /etc/debian_version ]] || die "Debian wird erwartet"
-rm -f /root/.releasenotes-generated-password
 
 APT_OPTS=(
   -o Acquire::Retries=10
@@ -251,6 +250,7 @@ if [[ -n "$ADMIN_PASSWORD_FILE" ]]; then
   [[ -n "$ADMIN_HASH_RAW" ]] || die "Admin-Passwort ist leer"
   ADMIN_HASH_B64="b64:$(printf '%s' "$ADMIN_HASH_RAW" | base64 -w0 | tr '+/' '-_' | tr -d '=')"
   unset ADMIN_HASH_RAW
+  rm -f /root/.releasenotes-generated-password
   msg_ok "Admin-Passwort aktualisiert"
 fi
 

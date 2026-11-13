@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- App-ID `releasenotes`, Port `8080`, CT-Hostname `releasenotes`.
+- App-ID `releasenotes`, Port `8080`, CT-Hostname `NexFireWall` (Alt: `releasenotes`).
 - Repo `https://github.com/HatchetMan111/FireNexWall-Proxmox`, Branch `main`.
 - Beide Installer: `set -euo pipefail`, ERR-Trap mit vollständiger Fehlerkette,
   Log unter `/var/log/releasenotes-install.log`.

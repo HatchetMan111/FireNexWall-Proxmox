@@ -1,6 +1,6 @@
 # Testevidenz
 
-Stand: 2026-11-12
+Stand: 2026-11-13
 Umgebung: Linux (Ubuntu-Kernel 6.8), Python 3.12.3, Node.js 22.23.2, npm 10.9.8
 
 ## Ergebnisuebersicht
@@ -16,8 +16,8 @@ Umgebung: Linux (Ubuntu-Kernel 6.8), Python 3.12.3, Node.js 22.23.2, npm 10.9.8
 | Container-Pakete (Debian 12) | bestanden | `docker run --rm debian:12 ...`; venv-pip ohne `python3-pip`, kein Node |
 | Lokaler End-to-End-Smoke-Test | bestanden | `tests/local-smoke.sh` |
 | Browser-/Visual-Pruefung | bestanden, keine Konsolenfehler | Playwright-Screenshots |
-| Proxmox-Installation | **nicht ausgefuehrt** | kein `pct`/`pvesh` in dieser Umgebung |
-| Proxmox-Reboot-Test | **nicht ausgefuehrt** | Testskript liegt bereit |
+| Proxmox-Installation | bestanden (CT 115, 2026-11-13) | Installationslauf auf Proxmox-Host, Web-UI erreichbar |
+| Proxmox-Reboot-Test | **offen** | Testskript liegt bereit |
 
 ## Statische Pruefungen
 
@@ -162,9 +162,9 @@ Beobachtungen:
 
 Das Repository wurde nach
 `https://github.com/HatchetMan111/FireNexWall-Proxmox` gepusht (Branch `main`,
-Commit `c126eb0`).
+Commit `a4df22c`).
 
-Geprueft am 2026-11-12:
+Geprueft am 2026-11-13:
 
 ```text
 raw .../install/releasenotes.sh        -> HTTP 200
@@ -184,18 +184,24 @@ und Argumentweitergabe ueber den Raw-Link verifiziert.
 
 ## Proxmox-Installation und Reboot
 
-Diese Umgebung ist kein Proxmox-VE-Host:
+Der echte LXC-Lauf wurde am 2026-11-13 auf einem Proxmox-VE-Host ausgefuehrt.
+Installiert wurde mit Commit `a4df22c` auf **CT 115**:
 
 ```text
-pct: nicht vorhanden
-pvesh: nicht vorhanden
-qm: nicht vorhanden
-pveam: nicht vorhanden
+ReleaseNotes ist installiert.
+Web-UI:      http://10.120.1.183:8080
+Admin:       http://10.120.1.183:8080/admin
+Benutzer:    admin
+CT-ID:       115
+Hostname:    releasenotes
 ```
 
-Daher konnten der echte LXC-Installationslauf und der Reboot-Test hier nicht
-ausgefuehrt werden. Beides ist vor der Veroeffentlichung auf einem Host
-nachzuholen.
+Damit sind Download, Container-Erstellung, DNS-/Host-Pinning, Paketinstallation,
+Dienststart und Web-UI auf echter Proxmox-Hardware bestaetigt. Der apt-Fehler
+`Temporary failure resolving` wurde auf die nicht aufloesbare `_apt`-Sandbox
+zurueckgefuehrt; mit `APT::Sandbox::User=root` installierte apt erfolgreich.
+Der Hostname wird mit dem naechsten Update auf `NexFireWall` umbenannt und das
+erzeugte Admin-Passwort wird dann direkt am Terminal ausgegeben.
 
 ### Installation
 
@@ -204,22 +210,22 @@ Voraussetzung: Das Repository ist unter
 Branch `main` enthaelt `install/releasenotes.sh`.
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/HatchetMan111/FireNexWall-Proxmox/main/install/releasenotes.sh)" -- --ctid 120 --yes
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/HatchetMan111/FireNexWall-Proxmox/main/install/releasenotes.sh)" -- --ctid 115 --yes
 ```
 
 Erwartet:
 
 - Exit-Code 0
-- `pct status 120` zeigt `running`
-- `pct config 120` zeigt `onboot: 1`
-- `pct exec 120 -- systemctl is-active releasenotes` zeigt `active`
-- `pct exec 120 -- curl -fsS http://127.0.0.1:8080/healthz` liefert
+- `pct status 115` zeigt `running`
+- `pct config 115` zeigt `hostname: NexFireWall` und `onboot: 1`
+- `pct exec 115 -- systemctl is-active releasenotes` zeigt `active`
+- `pct exec 115 -- curl -fsS http://127.0.0.1:8080/healthz` liefert
   `{"status":"ok","db":"ok",...}`
 
 ### Reboot-Test
 
 ```bash
-bash tests/reboot-test.sh --ctid 120 --port 8080
+bash tests/reboot-test.sh --ctid 115 --port 8080
 ```
 
 Das Skript prueft Dienst und Web-UI vor dem Reboot, rebootet den Container,

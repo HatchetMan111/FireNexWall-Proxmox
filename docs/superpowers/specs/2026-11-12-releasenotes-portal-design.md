@@ -3,7 +3,7 @@
 **Datum:** 2026-11-12
 **Status:** Approved (Design), bereit für Implementierungsplan
 **Repo:** https://github.com/HatchetMan111/FireNexWall-Proxmox
-**App-ID:** `releasenotes` · **Port:** `8080` · **CT-Hostname:** `releasenotes`
+**App-ID:** `releasenotes` · **Port:** `8080` · **CT-Hostname:** `NexFireWall` (Alt: `releasenotes`)
 
 ## 1. Ziel
 
@@ -136,7 +136,7 @@ werden direkt ausgeliefert. `/assets/*` mit langem Cache, `index.html` ohne Cach
 1. Root-, Proxmox- (`pct`, `pveam`, `pvesh`, `/etc/pve`) Prüfung.
 2. CT-ID: `pvesh get /cluster/nextid`, sofern nicht `--ctid`.
 3. Existiert die ID:
-   - gleicher Hostname `releasenotes` → Update-Modus (Code/Unit aktualisieren,
+   - Hostname `NexFireWall` oder Alt-`releasenotes` → Update-Modus (Code/Unit aktualisieren,
      DB und Admin-Passwort behalten),
    - fremder Hostname → Abbruch, außer `--force` (dann `pct destroy --purge`).
 4. Debian-12-Template sicherstellen, Storage automatisch ermitteln.

@@ -42,8 +42,10 @@ command -v pct >/dev/null || die "pct nicht gefunden - kein Proxmox-VE-Host?"
 pct config "$CTID" >/dev/null 2>&1 || die "CT ${CTID} existiert nicht"
 
 HOSTNAME_CT="$(pct config "$CTID" | awk -F': ' '/^hostname:/{print $2}')"
-[[ "$HOSTNAME_CT" == "releasenotes" ]] \
-  || die "CT ${CTID} hat Hostname '${HOSTNAME_CT}', erwartet 'releasenotes'"
+case "${HOSTNAME_CT,,}" in
+  nexfirewall|releasenotes) ;;
+  *) die "CT ${CTID} hat Hostname '${HOSTNAME_CT}', erwartet 'NexFireWall'" ;;
+esac
 
 mkdir -p "$(dirname "$OUT")"
 exec > >(tee -a "$OUT") 2>&1

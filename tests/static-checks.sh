@@ -61,6 +61,10 @@ for pattern in \
   'configure_ct_dns' \
   'pin_install_hosts' \
   'Bestehender CT' \
+  'CT_HOSTNAME="NexFireWall"' \
+  'LEGACY_CT_HOSTNAME' \
+  'RENAME_CT' \
+  'print_generated_admin_password' \
   'set -euo pipefail' \
   'onboot: 1'; do
   if grep -q -- "$pattern" install/releasenotes.sh; then
