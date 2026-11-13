@@ -59,6 +59,7 @@ for pattern in \
   '--unprivileged 1' \
   '--nameserver' \
   'configure_ct_dns' \
+  'pin_install_hosts' \
   'set -euo pipefail' \
   'onboot: 1'; do
   if grep -q -- "$pattern" install/releasenotes.sh; then
@@ -74,7 +75,7 @@ for pattern in \
   'systemctl enable' \
   'web/dist/index.html' \
   'ensure_dns' \
-  'Acquire::Retries=5' \
+  'Acquire::Retries=10' \
   'python3 -m venv' \
   '/healthz' \
   'releasenotes.service'; do

@@ -30,6 +30,7 @@ ADMIN_PASSWORD=""
 ADMIN_TMP=""
 LOG_FILE="/var/log/releasenotes-install.log"
 INNER_TMP=""
+HOSTS_TMP=""
 UPDATE_ONLY=0
 
 msg_info()  { echo -e "\e[34m[INFO]\e[0m  $*"; }
@@ -41,6 +42,9 @@ die()       { msg_error "$*"; exit 1; }
 cleanup() {
   if [[ -n "${ADMIN_TMP:-}" && -f "${ADMIN_TMP:-}" ]]; then
     rm -f "$ADMIN_TMP"
+  fi
+  if [[ -n "${HOSTS_TMP:-}" && -f "${HOSTS_TMP:-}" ]]; then
+    rm -f "$HOSTS_TMP"
   fi
 }
 trap cleanup EXIT
@@ -89,6 +93,53 @@ configure_ct_dns() {
     printf 'options timeout:2 attempts:3\n'
   } | pct exec "$CTID" -- tee /etc/resolv.conf >/dev/null 2>&1 \
     || msg_warn "Konnte /etc/resolv.conf im Container nicht schreiben"
+}
+
+pin_install_hosts() {
+  local host="" ips="" ip=""
+  local pin_hosts=(
+    deb.debian.org security.debian.org
+    github.com pypi.org files.pythonhosted.org
+  )
+  HOSTS_TMP="$(mktemp)"
+  {
+    printf '# releasenotes installer: host pinning\n'
+    for host in "${pin_hosts[@]}"; do
+      ips="$(getent ahostsv4 "$host" 2>/dev/null \
+        | awk '!seen[$1]++ { print $1; n++; if (n==4) exit }')" || true
+      if [[ -z "$ips" ]]; then
+        ips="$(pct exec "$CTID" -- getent ahostsv4 "$host" 2>/dev/null \
+          | awk '!seen[$1]++ { print $1; n++; if (n==4) exit }')" || true
+      fi
+      while IFS= read -r ip; do
+        [[ -n "$ip" ]] || continue
+        case "$ip" in 127.*) continue;; esac
+        printf '%s %s\n' "$ip" "$host"
+      done <<< "$ips"
+    done
+    printf '# end releasenotes installer: host pinning\n'
+  } > "$HOSTS_TMP"
+  if ! grep -Eq '^[0-9]' "$HOSTS_TMP"; then
+    msg_warn "Keine A-Eintraege fuer Install-Hosts ermittelbar - nutze DNS"
+    rm -f "$HOSTS_TMP"
+    HOSTS_TMP=""
+    return 0
+  fi
+  if ! pct push "$CTID" "$HOSTS_TMP" /tmp/releasenotes-hosts --perms 644 >/dev/null 2>&1; then
+    msg_warn "Host-Pinning konnte nicht in den Container kopiert werden"
+    rm -f "$HOSTS_TMP"
+    HOSTS_TMP=""
+    return 0
+  fi
+  pct exec "$CTID" -- sh -c '
+    if grep -q "^# releasenotes installer: host pinning" /etc/hosts; then
+      sed -i "/^# releasenotes installer: host pinning/,/^# end releasenotes installer: host pinning/d" /etc/hosts
+    fi
+    cat /tmp/releasenotes-hosts >> /etc/hosts
+    rm -f /tmp/releasenotes-hosts
+  ' || msg_warn "Host-Pinning konnte /etc/hosts nicht aktualisieren"
+  rm -f "$HOSTS_TMP"
+  HOSTS_TMP=""
 }
 
 on_error() {
@@ -332,6 +383,9 @@ fi
 
 msg_info "DNS im Container konfigurieren"
 configure_ct_dns
+
+msg_info "Install-Hosts im Container pinnen"
+pin_install_hosts
 
 msg_info "Auf Netzwerk und DNS im Container warten"
 ready=0

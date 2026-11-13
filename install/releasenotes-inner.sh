@@ -115,10 +115,12 @@ msg_info "ReleaseNotes Installation startet (Port ${PORT})"
 rm -f /root/.releasenotes-generated-password
 
 APT_OPTS=(
-  -o Acquire::Retries=5
+  -o Acquire::Retries=10
   -o Acquire::http::Timeout=30
   -o Acquire::https::Timeout=30
   -o Acquire::ForceIPv4=true
+  -o Acquire::http::Pipeline-Depth=0
+  -o Acquire::Queue-Mode=host
 )
 PACKAGES=(
   ca-certificates curl git openssl python3 python3-venv sqlite3 ufw
@@ -155,14 +157,14 @@ apt_update() {
 
 install_packages() {
   local attempt
-  for attempt in 1 2 3; do
+  for attempt in 1 2 3 4 5; do
     if apt-get install -y -qq --no-install-recommends \
       "${APT_OPTS[@]}" "${PACKAGES[@]}"; then
       return 0
     fi
-    msg_warn "apt-Versuch ${attempt}/3 fehlgeschlagen - DNS/Netz pruefen"
+    msg_warn "apt-Versuch ${attempt}/5 fehlgeschlagen - DNS/Netz pruefen"
     ensure_dns || true
-    sleep 5
+    sleep 10
     apt_update || true
   done
   return 1
