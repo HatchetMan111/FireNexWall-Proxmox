@@ -1,8 +1,47 @@
 # ReleaseNotes Portal
 
-Lokales, selbst gehostetes Release-Notes-Portal fuer Proxmox VE. Laeuft in einem
-eigenen LXC, speichert alles in SQLite und braucht keine Cloud, keinen externen
-Dienst und keine Registrierung.
+> **Wichtig: Das ist keine Firewall.**
+> Trotz des Repo-Namens `FireNexWall-Proxmox` und des CT-Hostnamens
+> `NexFireWall` filtert, routet oder blockiert diese Anwendung **keinen
+> Netzwerkverkehr**. Sie ist ein Web-Portal fuer Release-Notes und Changelogs.
+
+## Was ist das?
+
+Ein kleines, selbst gehostetes **Release-Notes- und Changelog-Portal** fuer
+Proxmox VE. Es laeuft in einem eigenen LXC, speichert alles in SQLite und
+braucht keine Cloud, keinen externen Dienst und keine Registrierung.
+
+Kurz gesagt: Du traegst im Admin-Bereich ein, was sich in einer Version
+geaendert hat, und Besucher sehen eine saubere, durchsuchbare Seite mit
+Versionshinweisen, bekannten Problemen und Download-Links. Statt fuer jedes
+Projekt eine statische HTML-Seite zu pflegen, gibt es eine zentrale Oberflaeche
+fuer alle Releases.
+
+Typische Inhalte:
+
+- Versionsnummer, Titel, Datum und Status (`stable`, `beta`, `rc`)
+- Aenderungen und Bugfixes als Markdown
+- bekannte Probleme und Hinweise
+- Download-Links fuer Skripte, Firmware, Add-ons oder andere Artefakte
+
+## Was es nicht ist
+
+- **Keine Firewall:** kein Paketfilter, kein NAT, kein Routing, kein VPN,
+  kein IDS/IPS und keine Netzwerksegmentierung.
+- **Kein Wiki:** es ist auf Release-Notes/Changelogs spezialisiert, nicht auf
+  beliebige Dokumentation.
+- **Kein SaaS:** keine Cloud, keine Telemetrie, keine Registrierung.
+- **Kein Ersatz fuer OPNsense/pfSense oder die Proxmox-Firewall.**
+
+Das `ufw` im Container ist nur ein Zugriffsschutz fuer das Portal selbst
+(Port `8080` und SSH aus dem LAN). Es ist keine Firewall-Funktion des Projekts.
+
+## Wofuer ist es gedacht?
+
+Sinnvoll, wenn du Software, Skripte, Firmware oder Homelab-Projekte
+veroeffentlichst und Nutzern mitteilen willst, was sich zwischen Versionen
+geaendert hat. Ohne solche Releases oder ohne Publikum bringt das Portal
+praktisch keinen Nutzen.
 
 ![Startseite](docs/screenshots/home.png)
 
@@ -54,10 +93,11 @@ Am Ende erscheint eine Ausgabe wie:
   Admin-Passwort: <zufaellig erzeugt>
 ```
 
-Das Admin-Passwort wird nur bei der Erstinstallation erzeugt und angezeigt.
-Es landet nicht im Installationslog: Die Ausgabe geht direkt an das Terminal.
-Ohne Terminal (z. B. Automatisierung) wird es nach
-`/root/releasenotes-admin-password` geschrieben (`0600`).
+Das Admin-Passwort wird bei der Erstinstallation erzeugt. Der Installer zeigt
+es am Terminal an und entfernt danach die Passwortdatei aus dem CT. Bei einem
+Update wird es erneut angezeigt, solange diese Datei noch vorhanden ist. Es
+landet nicht im Installationslog. Ohne Terminal (z. B. Automatisierung) wird es
+nach `/root/releasenotes-admin-password` geschrieben (`0600`).
 
 ### Nicht-interaktiv
 
